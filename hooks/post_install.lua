@@ -73,7 +73,7 @@ function PLUGIN:PostInstall(ctx)
 
     -- Run buildconf
     print("Running buildconf...")
-    local buildconfCmd = string.format("cd '%s' && ./buildconf --force", sdkPath)
+    local buildconfCmd = string.format("cd '%s' && %s./buildconf --force", sdkPath, envPrefix)
     local status = os.execute(buildconfCmd)
     if status ~= 0 and status ~= true then
         error("Failed to run buildconf")
@@ -90,7 +90,7 @@ function PLUGIN:PostInstall(ctx)
     -- Build PHP
     print("Building PHP (this may take several minutes)...")
     local makeCmd =
-        string.format("cd '%s' && make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)", sdkPath)
+        string.format("cd '%s' && %smake -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)", sdkPath, envPrefix)
     status = os.execute(makeCmd)
     if status ~= 0 and status ~= true then
         error("Failed to build PHP")
@@ -98,7 +98,7 @@ function PLUGIN:PostInstall(ctx)
 
     -- Install PHP
     print("Installing PHP...")
-    local installCmd = string.format("cd '%s' && make install", sdkPath)
+    local installCmd = string.format("cd '%s' && %smake install", sdkPath, envPrefix)
     status = os.execute(installCmd)
     if status ~= 0 and status ~= true then
         error("Failed to install PHP")
@@ -221,17 +221,18 @@ function configure_macos(configureOptions, homebrew_prefix)
         { name = "libsodium", flag = "--with-sodium" },
         { name = "freetype", flag = "--with-freetype" },
         { name = "gettext", flag = "--with-gettext" },
-        { name = "jpeg", flag = "--with-jpeg" },
+        { name = "jpeg", flag = "--with-jpeg", path_name = "jpeg-turbo" },
         { name = "webp", flag = "--with-webp" },
         { name = "libpng", flag = "--with-png" },
         { name = "readline", flag = "--with-readline" },
         { name = "bzip2", flag = "--with-bz2" },
         { name = "libiconv", flag = "--with-iconv" },
         { name = "libpq", flag = "--with-pdo-pgsql" },
+        { name = "openssl@3", flag = "--with-openssl" },
     }
 
     for _, pkg in ipairs(optional_packages) do
-        local pkg_path = homebrew_prefix .. "/opt/" .. pkg.name
+        local pkg_path = homebrew_prefix .. "/opt/" .. (pkg.path_name or pkg.name)
         local f = io.open(pkg_path .. "/lib", "r")
         if f ~= nil then
             f:close()
@@ -300,7 +301,31 @@ function install_composer(sdkPath)
         return
     end
 
-    -- Verify and install
+    local signature_cmd =
+        "curl -fsSL https://composer.github.io/installer.sig 2>/dev/null || wget -q -O - https://composer.github.io/installer.sig 2>/dev/null"
+    local signature_handle = io.popen(signature_cmd)
+    local expected_signature = signature_handle and signature_handle:read("*a") or ""
+    if signature_handle then
+        signature_handle:close()
+    end
+    expected_signature = string.gsub(expected_signature, "%s+", "")
+    if expected_signature == "" then
+        os.remove(sdkPath .. "/composer-setup.php")
+        error("Failed to download Composer installer signature")
+    end
+
+    local verify_cmd = string.format(
+        "%s -r \"if (hash_file('sha384', '%s/composer-setup.php') !== '%s') { exit(1); }\"",
+        php_bin,
+        sdkPath,
+        expected_signature
+    )
+    status = os.execute(verify_cmd)
+    if status ~= 0 and status ~= true then
+        os.remove(sdkPath .. "/composer-setup.php")
+        error("Composer installer signature verification failed")
+    end
+
     local install_cmd = string.format(
         "%s '%s/composer-setup.php' --install-dir='%s/bin' --filename=composer",
         php_bin,

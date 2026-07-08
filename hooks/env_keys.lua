@@ -14,6 +14,14 @@ function PLUGIN:EnvKeys(ctx)
             key = "PATH",
             value = installDir .. "/sbin",
         },
+        {
+            key = "PATH",
+            value = installDir .. "/.composer/vendor/bin",
+        },
+        {
+            key = "COMPOSER_HOME",
+            value = installDir .. "/.composer",
+        },
     }
 
     -- Add LD_LIBRARY_PATH on Linux
