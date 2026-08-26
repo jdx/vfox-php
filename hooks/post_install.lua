@@ -294,7 +294,7 @@ function install_composer(sdkPath)
 
     -- Download installer
     local download_cmd =
-        string.format("%s -r \"copy('https://getcomposer.org/installer', '%s/composer-setup.php');\"", php_bin, sdkPath)
+        string.format("curl -fsSL https://getcomposer.org/installer -o '%s/composer-setup.php' || wget -q -O '%s/composer-setup.php' https://getcomposer.org/installer", sdkPath, sdkPath)
     local status = os.execute(download_cmd)
     if status ~= 0 and status ~= true then
         io.stderr:write("Warning: Failed to download Composer installer\n")
