@@ -290,11 +290,13 @@ end
 
 --- Install Composer
 local function fetch_https_body(url)
-    -- vfox returns (response, error), while mise raises Lua errors for failed
-    -- HTTP operations. Normalize both behaviours before checking the status.
-    local ok, response, err = pcall(http.get, { url = url })
-    if not ok then
-        return nil, response
+    -- mise exposes try_get for errors-as-values; standalone vfox's get already
+    -- uses that convention. Avoid pcall because mise's async HTTP can yield.
+    local response, err
+    if http.try_get ~= nil then
+        response, err = http.try_get({ url = url })
+    else
+        response, err = http.get({ url = url })
     end
     if err ~= nil then
         return nil, err
