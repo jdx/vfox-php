@@ -1,3 +1,5 @@
+local http = require("http")
+
 --- Compiles and installs PHP from source
 --- @param ctx table Context provided by vfox
 --- @field ctx.sdkInfo table SDK information with version and path
@@ -287,30 +289,66 @@ function configure_linux(configureOptions)
 end
 
 --- Install Composer
+local function fetch_https_body(url)
+    -- vfox returns (response, error), while mise raises Lua errors for failed
+    -- HTTP operations. Normalize both behaviours before checking the status.
+    local ok, response, err = pcall(http.get, { url = url })
+    if not ok then
+        return nil, response
+    end
+    if err ~= nil then
+        return nil, err
+    end
+    if response == nil then
+        return nil, "empty response"
+    end
+    if response.status_code ~= 200 then
+        return nil, "HTTP " .. tostring(response.status_code)
+    end
+
+    return response.body
+end
+
+local function download_https_file(url, path)
+    local body, err = fetch_https_body(url)
+    if body == nil then
+        return nil, err
+    end
+
+    local file, open_err = io.open(path, "wb")
+    if file == nil then
+        return nil, open_err
+    end
+    local wrote, write_err = file:write(body)
+    local closed, close_err = file:close()
+    if wrote == nil or closed == nil then
+        os.remove(path)
+        return nil, write_err or close_err
+    end
+
+    return true
+end
+
 function install_composer(sdkPath)
     print("Installing Composer...")
 
     local php_bin = sdkPath .. "/bin/php"
 
-    -- Download installer
-    local download_cmd =
-        string.format("%s -r \"copy('https://getcomposer.org/installer', '%s/composer-setup.php');\"", php_bin, sdkPath)
-    local status = os.execute(download_cmd)
-    if status ~= 0 and status ~= true then
-        io.stderr:write("Warning: Failed to download Composer installer\n")
+    local installer_path = sdkPath .. "/composer-setup.php"
+    local downloaded, download_err = download_https_file("https://getcomposer.org/installer", installer_path)
+    if downloaded == nil then
+        io.stderr:write("Warning: Failed to download Composer installer: " .. tostring(download_err) .. "\n")
         return
     end
 
-    local signature_cmd =
-        "curl -fsSL https://composer.github.io/installer.sig 2>/dev/null || wget -q -O - https://composer.github.io/installer.sig 2>/dev/null"
-    local signature_handle = io.popen(signature_cmd)
-    local expected_signature = signature_handle and signature_handle:read("*a") or ""
-    if signature_handle then
-        signature_handle:close()
+    local expected_signature, signature_err = fetch_https_body("https://composer.github.io/installer.sig")
+    if expected_signature == nil then
+        os.remove(installer_path)
+        error("Failed to download Composer installer signature: " .. tostring(signature_err))
     end
     expected_signature = string.gsub(expected_signature, "%s+", "")
     if expected_signature == "" then
-        os.remove(sdkPath .. "/composer-setup.php")
+        os.remove(installer_path)
         error("Failed to download Composer installer signature")
     end
 
@@ -320,7 +358,7 @@ function install_composer(sdkPath)
         sdkPath,
         expected_signature
     )
-    status = os.execute(verify_cmd)
+    local status = os.execute(verify_cmd)
     if status ~= 0 and status ~= true then
         os.remove(sdkPath .. "/composer-setup.php")
         error("Composer installer signature verification failed")
