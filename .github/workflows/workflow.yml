@@ -1,0 +1,77 @@
+name: Main workflow
+
+on:
+  pull_request:
+  push:
+  schedule:
+    - cron: 0 0 * * 5
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      MISE_USE_VERSIONS_HOST: 0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          cache: false
+
+      # Unix-specific plugin setup
+      - name: Setup plugin (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p ~/.local/share/mise/plugins
+          ln -s $PWD ~/.local/share/mise/plugins/php
+
+      # Windows-specific plugin setup
+      - name: Setup plugin (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $pluginDir = "$env:LOCALAPPDATA\mise\plugins"
+          New-Item -ItemType Directory -Force -Path $pluginDir
+          New-Item -ItemType Junction -Path "$pluginDir\php" -Target $PWD
+
+      # Validate version listing
+      - name: Validate mise ls-remote works
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mise ls-remote php > versions.txt
+          head -20 versions.txt
+          grep -E '^8\.4\.[0-9]+$' versions.txt | head -3 || (echo "ERROR: no 8.4.x versions found" && exit 1)
+          grep -E '^8\.3\.[0-9]+$' versions.txt | head -3 || (echo "ERROR: no 8.3.x versions found" && exit 1)
+          grep -Eq '^8\.3\.0$' versions.txt
+
+      # PHP is compiled from source (several minutes per version), so a real
+      # install is not run here. PreInstall is exercised instead through the
+      # platform guard: Windows must be rejected before anything is downloaded.
+      - name: Windows install is rejected
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          if mise install php@8.4.1; then
+            echo "ERROR: install should fail on Windows"
+            exit 1
+          fi
+
+      # Only the hooks pass stylua today; metadata.lua has pre-existing
+      # formatting differences, so it is not checked.
+      - name: Check Lua formatting
+        if: runner.os == 'Linux'
+        run: mise x stylua@2.5.2 -- stylua --check hooks
