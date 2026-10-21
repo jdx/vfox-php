@@ -288,6 +288,17 @@ function configure_macos(configureOptions, homebrew_prefix)
         configureOptions = configureOptions .. " --with-external-gd"
     end
 
+    -- Enable zip when libzip is installed. Unlike the flags above, --with-zip
+    -- takes no path: ext/zip resolves libzip through pkg-config, which already
+    -- has libzip on its PKG_CONFIG_PATH from required_packages.
+    local libzip_lib = io.open(homebrew_prefix .. "/opt/libzip/lib", "r")
+    if libzip_lib ~= nil then
+        libzip_lib:close()
+        configureOptions = configureOptions .. " --with-zip"
+    else
+        io.stderr:write("Info: libzip not found, skipping --with-zip\n")
+    end
+
     return configureOptions, envPrefix
 end
 
