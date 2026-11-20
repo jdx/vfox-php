@@ -75,6 +75,8 @@ PLUGIN.systemDependencies = {
       packages = { brew = "libsodium", apt = "libsodium-dev", dnf = "libsodium-devel" } },
     { pkgconfig = "gmp", optional = "gmp extension",
       packages = { brew = "gmp", apt = "libgmp-dev", dnf = "gmp-devel" } },
-    { command = linux_only .. 'pkg-config --exists readline',
+    -- RHEL 8's readline-devel ships the headers without readline.pc, and
+    -- configure looks for the header, so accept either.
+    { command = linux_only .. 'pkg-config --exists readline || test -f /usr/include/readline/readline.h',
       packages = { brew = "readline", apt = "libreadline-dev", dnf = "readline-devel" } },
 }

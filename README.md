@@ -31,12 +31,39 @@ sudo apt-get install build-essential autoconf bison re2c pkg-config \
     libsqlite3-dev zlib1g-dev
 ```
 
-### RHEL/CentOS/Fedora
+### RHEL
+
+```bash
+# libzip-devel and oniguruma-devel come from CodeReady Builder; re2c and
+# libsodium-devel from EPEL (replace 9 with your major version)
+sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms
+sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+sudo dnf groupinstall "Development Tools"
+sudo dnf install autoconf bison re2c pkgconfig gcc-c++ \
+    libxml2-devel openssl-devel libicu-devel libzip-devel oniguruma-devel \
+    libcurl-devel libpng-devel libjpeg-devel freetype-devel \
+    libwebp-devel gmp-devel libsodium-devel readline-devel bzip2-devel \
+    sqlite-devel zlib-devel
+```
+
+### CentOS Stream/AlmaLinux/Rocky Linux
 
 ```bash
 # libzip-devel and oniguruma-devel come from CRB; re2c and libsodium-devel from EPEL
+sudo dnf install dnf-plugins-core
 sudo dnf config-manager --set-enabled crb
 sudo dnf install epel-release
+sudo dnf groupinstall "Development Tools"
+sudo dnf install autoconf bison re2c pkgconfig gcc-c++ \
+    libxml2-devel openssl-devel libicu-devel libzip-devel oniguruma-devel \
+    libcurl-devel libpng-devel libjpeg-devel freetype-devel \
+    libwebp-devel gmp-devel libsodium-devel readline-devel bzip2-devel \
+    sqlite-devel zlib-devel
+```
+
+### Fedora
+
+```bash
 sudo dnf groupinstall "Development Tools"
 sudo dnf install autoconf bison re2c pkgconfig gcc-c++ \
     libxml2-devel openssl-devel libicu-devel libzip-devel oniguruma-devel \
