@@ -27,17 +27,22 @@ brew install autoconf bison re2c pkg-config \
 sudo apt-get install build-essential autoconf bison re2c pkg-config \
     libxml2-dev libssl-dev libicu-dev libzip-dev libonig-dev \
     libcurl4-openssl-dev libpng-dev libjpeg-dev libfreetype6-dev \
-    libwebp-dev libgmp-dev libsodium-dev libreadline-dev libbz2-dev
+    libwebp-dev libgmp-dev libsodium-dev libreadline-dev libbz2-dev \
+    libsqlite3-dev zlib1g-dev
 ```
 
 ### RHEL/CentOS/Fedora
 
 ```bash
+# libzip-devel and oniguruma-devel come from CRB; re2c and libsodium-devel from EPEL
+sudo dnf config-manager --set-enabled crb
+sudo dnf install epel-release
 sudo dnf groupinstall "Development Tools"
-sudo dnf install autoconf bison re2c pkgconfig \
+sudo dnf install autoconf bison re2c pkgconfig gcc-c++ \
     libxml2-devel openssl-devel libicu-devel libzip-devel oniguruma-devel \
     libcurl-devel libpng-devel libjpeg-devel freetype-devel \
-    libwebp-devel gmp-devel libsodium-devel readline-devel bzip2-devel
+    libwebp-devel gmp-devel libsodium-devel readline-devel bzip2-devel \
+    sqlite-devel zlib-devel
 ```
 
 ## Installation
